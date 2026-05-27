@@ -1,0 +1,29 @@
+# W3 -> W4 Integration Seam Realization
+
+<!--
+Skeleton for cohort-7 W4. Copy (`make seam-init`) to docs/architecture/w3-to-w4-integration-seam.md
+in your capstone repo.
+
+Outcome 8: take the integration seam you named in W3 (docs/architecture/tradeoffs.md) and show, in
+ONE paragraph, how your W4 Terraform module pre-provisions its infrastructure side. Then name the W5
+auth pre-provision (OIDC / workload identity pool) your module creates.
+
+Fill at Thu lab Part C, after your module applies. One paragraph + the two named provisions.
+-->
+
+## The W3 seam
+
+<TODO: restate the seam from your W3 tradeoffs.md "Integration seams to watch" — one sentence.>
+
+## How W4 Terraform realizes its infrastructure side
+
+<TODO: one paragraph. Name the specific Terraform resource(s) / attribute(s) that pre-provision the
+seam. Example: "W3 seam = encryption-at-rest for the capstone datastore. W4 realization: the
+aws_s3_bucket has server_side_encryption_configuration referencing a KMS key; the unencrypted variant
+is closed off in the module.">
+
+## W5 auth pre-provision (carried for the W5 pipeline)
+
+<TODO: name the OIDC provider (AWS `aws_iam_openid_connect_provider`) or workload identity pool (GCP)
+your module creates that W5's GitHub Actions pipeline will consume for cloud auth, and one sentence on
+what W5 does with it.>

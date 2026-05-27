@@ -1,0 +1,41 @@
+# W4 Checkov Scan — Output + Triage (Thu lab Part C)
+
+<!--
+Skeleton for cohort-7 W4. Copy (`make` writes the raw scan to docs/security/checkov-wk04-output.txt;
+copy this file to docs/security/checkov-wk04.md) in your capstone repo.
+
+This is the REQUIRED acceptance artifact (spec Outcome 5 + lab acceptance). Distinct from your
+pre-lab PREDICTION (checkov-wk04-plan.md) — here you record the ACTUAL scan + your triage.
+Required: the scan summary + >= 1 fix narrative + >= 1 conscious-defer-with-rationale.
+-->
+
+**Learner:** <your name>
+**Chosen cloud:** <AWS | GCP>
+**Scan command:** `make checkov-scan` (raw output in docs/security/checkov-wk04-output.txt)
+
+## Scan summary
+
+<TODO: paste the passed/failed counts + the failed check IDs (CKV_AWS_* / CKV_GCP_*). Don't paste all
+50 lines — summarize: N passed, M failed; list the failed rule IDs.>
+
+## Prediction vs actual
+
+<TODO: compare to your checkov-wk04-plan.md. Which rules did you correctly predict would fail? Which
+surprised you? That gap is the learning.>
+
+## Fixed (>= 1 required)
+
+<TODO: name >= 1 HIGH/MEDIUM finding you FIXED. The rule ID + what you changed in the HCL + why.>
+
+- **Rule:** <CKV_..._..>
+- **Fix:** <the HCL change>
+- **Why:** <one sentence>
+
+## Consciously deferred (>= 1 required)
+
+<TODO: name >= 1 finding you chose NOT to fix, with rationale. A conscious defer is a judgment call,
+not an oversight — say why it's acceptable for this lab/pilot scope.>
+
+- **Rule:** <CKV_..._..>
+- **Deferred because:** <rationale — e.g. "private nodes (CKV_GCP_64) needs a NAT/Cloud-NAT the lab
+  budget excludes; documented as a production seam, not a lab requirement.">

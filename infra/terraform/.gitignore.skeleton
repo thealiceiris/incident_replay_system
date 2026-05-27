@@ -1,0 +1,24 @@
+# W4 starter — Terraform .gitignore. Copy into your capstone repo as infra/terraform/.gitignore.
+#
+# WHY THIS MATTERS: a committed state file leaks cloud resource IDs + secrets and corrupts on
+# concurrent applies. DORA 2014 says version-control your production artifacts — your Terraform
+# CODE is the artifact; the STATE is not. Committing tfstate is an automatic Not-Yet-Met on the
+# W5 Peer Review rubric.
+
+# State — NEVER commit
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Provider plugins + lock-internal dirs
+.terraform/
+.terraform.lock.hcl  # (optional to commit; pin if you want reproducible provider versions)
+
+# Variable files that may hold secrets
+*.tfvars
+*.tfvars.json
+!example.tfvars      # keep a non-secret example if you ship one
+
+# Crash logs + plan output
+crash.log
+*.tfplan

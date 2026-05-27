@@ -1,0 +1,93 @@
+name: week-04-check
+
+# W4 (Provision/IaC) artifacts live at FLAT capstone-repo paths (infra/, docs/, ai-journal/) — they
+# persist across W4-W11, so they are NOT nested under week-04/. Copy this workflow into your capstone
+# repo's .github/workflows/. Two HARD gates (committed state = catastrophic; AI journal = readiness);
+# everything else is a warning so an in-progress build never blocks you. Run full validate/scan
+# locally via `make validate` / `make checkov-scan`.
+#
+# Security note: every `run:` below uses only static strings + git/terraform — no ${{ github.event.* }}
+# untrusted input is interpolated into a shell command.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - 'docs/**'
+      - 'ai-journal/**'
+      - '.github/workflows/week-04-check.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - 'docs/**'
+      - 'ai-journal/**'
+      - '.github/workflows/week-04-check.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  week-04-check:
+    name: week-04-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: No Terraform state committed (HARD FAIL - catastrophic discipline failure)
+        run: |
+          if git ls-files | grep -E '\.tfstate($|\.)' ; then
+            echo "::error title=Terraform state committed::A *.tfstate file is tracked in git. State leaks cloud resource IDs + secrets and is an automatic Not-Yet-Met on Peer Review 1. Remove it (git rm --cached), confirm infra/terraform/.gitignore lists *.tfstate, recommit."
+            exit 1
+          fi
+          echo "OK: no Terraform state committed."
+
+      - name: AI journal entry (Sun-deliverable; HARD FAIL - cohort-readiness signal)
+        run: |
+          if [ -f ai-journal/wk04-cross-cloud-translation.md ]; then
+            echo "AI journal path exists: ai-journal/wk04-cross-cloud-translation.md"
+          else
+            echo "::error title=Missing AI journal::ai-journal/wk04-cross-cloud-translation.md is missing. After Thu lab Part B, run 'make ai-journal-init', fill the 6 points (Arc-2 LOCKED format), commit. Required by Sun 23:59 GMT."
+            exit 1
+          fi
+
+      - name: IaC ADR path check (warning, does NOT gate CI)
+        run: |
+          if ls docs/adr/0002-*.md >/dev/null 2>&1; then
+            echo "IaC ADR path exists."
+          else
+            echo "::warning title=IaC ADR pending::docs/adr/0002-iac-choices.md not yet committed. Run 'make adr-init'; Mon = Status + Context + Decision; Thu = full MADR + team + seam."
+          fi
+
+      - name: Terraform module path check (warning, does NOT gate CI)
+        run: |
+          if [ -f infra/terraform/variables.tf ]; then
+            echo "Terraform module path exists: infra/terraform/variables.tf"
+          else
+            echo "::warning title=Terraform module pending::infra/terraform/variables.tf not yet committed. Run 'make tf-init' and build it at Thu lab Part A."
+          fi
+
+      - name: Checkov scan output path check (Thu Part C; warning, does NOT gate CI)
+        run: |
+          if [ -f docs/security/checkov-wk04.md ]; then
+            echo "Checkov scan output exists: docs/security/checkov-wk04.md"
+          else
+            echo "::warning title=Checkov scan pending::docs/security/checkov-wk04.md not yet committed. Thu lab Part C output. Run 'make checkov-scan' locally, document >= 1 fix + >= 1 conscious-defer."
+          fi
+
+      - name: Setup Terraform (for the soft fmt check below)
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: terraform fmt -check (warning, does NOT gate CI)
+        continue-on-error: true
+        run: |
+          if [ -d infra/terraform ]; then
+            terraform -chdir=infra/terraform fmt -check -recursive || echo "::warning title=Terraform not formatted::run 'terraform fmt -recursive infra/terraform' to canonicalize."
+          else
+            echo "::warning title=No infra/terraform yet::skipping fmt check."
+          fi
