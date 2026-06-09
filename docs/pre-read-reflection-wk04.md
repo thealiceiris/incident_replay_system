@@ -1,6 +1,15 @@
+# W4 Pre-Read Reflection
 
+<
 
- Pre-read sources
+**Learner:** Alice Iris Kare Acquah
+**Date:** <YYYY-MM-DD>
+**Due:** before the W4 Concept Socratic (delivered 2026-05-26; pre-read closes 08:00 GMT that day —
+4bdu1 confirms the exact pin)
+
+---
+
+## Pre-read sources
 
 ~2.5 hr core (items 1-4) + 20 min DORA 2014 recap (item 5) + 30 min capstone prep (item 6) =
 ~3 hr core; ~4 hr with optional items 7+8. Deliberately lighter end of the range — W4 is build-heavy
@@ -26,9 +35,11 @@
 > Redis / object store / secrets store / queue). One sentence on WHY your scope requires it — tie to
 > real-users / persistent-state / meaningful-failure-surface from the W2 rubric.
 
-Cloud: GCP 
-Additional managed resource: Cloud SQL
-Justification: The incident replay system requires durable event storage so that ingestion survives service restarts and failures, enabling accurate reconstruction of incident timelines from persisted state rather than ephemeral in-memory processing.
+<Cloud: GCP
+Managed Resource: Cloud SQL for PostgreSQL
+The incident replay system requires durable storage of ingested events so that incidents can be reconstructed after service failures or restarts. Cloud SQL provides persistent state and creates a meaningful failure surface because the system depends on accurate storage and retrieval of historical event data.
+>
+---
 
 ## P2 — W3 seam -> W4 Terraform realization
 
@@ -38,7 +49,9 @@ Justification: The incident replay system requires durable event storage so that
 > Example: "W3 seam — service-to-service auth via OIDC. W4 realization — Terraform provisions the AWS
 > IAM OIDC identity provider for GitHub Actions."
 
-<Your answer. Name the seam. Name its Terraform realization.>
+<W3 seam: The synchronous PostgreSQL dependency requires persistent storage, automated backups, and database monitoring to support reliable event ingestion.
+W4 realization: Terraform provisions a Cloud SQL PostgreSQL instance with persistent storage and backup configuration alongside the GKE Autopilot cluster, establishing the infrastructure required for synchronous event ingestion and durable storage of incident events.
+>
 
 ---
 
@@ -50,6 +63,11 @@ Justification: The incident replay system requires durable event storage so that
 > FAIL on + one sentence each on why the rule is a reasonable default to enforce. You'll compare
 > these predictions to the actual scan output in lab Part C.
 
+
+<Rules I expect my Part-A module to FAIL (prediction)
+CKV_GCP_64 — GKE cluster not configured with private nodes. Why it's a reasonable default to enforce: private nodes reduce the attack surface by preventing direct public access to worker nodes.
+CKV_GCP_18 — GKE control plane is public. Why it's a reasonable default to enforce: restricting control-plane exposure reduces the risk of unauthorized administrative access and limits internet-facing infrastructure.
+CKV_GCP_71 — Shielded GKE Nodes feature disabled. Why it's a reasonable default to enforce: Shielded Nodes provide secure boot, integrity monitoring, and protection against low-level malware and rootkits.>
 - **Path to your committed prediction:** docs/security/checkov-wk04-plan.md
 
 ---
