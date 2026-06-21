@@ -1,38 +1,34 @@
-# W4 starter — GCP implementation of the SAME shared variable contract (GKE).
-# Copy into your capstone repo as infra/terraform/modules/gcp/main.tf.
-#
-# In the Thu lab this is usually your Part-B AI-TRANSLATION READING ARTIFACT: generate it from the
-# AWS module with AI, then read it and NAME THE SEAMS. Do NOT apply it if AWS is your chosen cloud.
-# The `# TRANSLATION SEAM:` comments are the exemplars — yours should look like these.
+
 
 variable "name" { type = string }
 variable "region" { type = string }
-variable "tags" { type = map(string) } # GCP calls these "labels" — see the first seam.
+variable "tags" { type = map(string) }
 variable "node_size" { type = string }
 variable "replicas" { type = number }
-variable "data_layer_config" { type = object({ versioning_enabled = bool }) }
+variable "data_layer_config" { type = object({ versioning_enabled = bool, retention_days = number, audit_logging = bool, query_logging = bool }) }
+variable "db_username" { type = string }
+variable "db_password" {
+  type      = string
+  sensitive = true
+}
+
+data "google_project" "current" {}
+
+
 
 locals {
-  # Same contract, different target: node_size -> a GCP machine type (used by the Standard example below).
+
   machine_type = {
     small  = "e2-medium"
     medium = "e2-standard-4"
     large  = "e2-standard-8"
   }[var.node_size]
 }
-
-# COST-SAFE DEFAULT = Autopilot. The GKE free tier credits $74.40/mo, which covers ONE Autopilot
-# (or zonal Standard) cluster's $0.10/hr management fee — a near-free control plane, unlike EKS which
-# has no free tier. Autopilot manages nodes for you and bills per-pod (no node pool to size).
 resource "google_container_cluster" "this" {
-  name             = var.name
-  location         = var.region
-  enable_autopilot = true
-  resource_labels  = var.tags
-
-  # COST GUARD: the Google provider defaults deletion_protection=true, which blocks `terraform
-  # destroy`. Set false for the lab so `make tf-destroy` works (destroy-before-close). Flip to true
-  # for production.
+  name                = var.name
+  location            = var.region
+  enable_autopilot    = true
+  resource_labels     = var.tags
   deletion_protection = false
 
   # TRANSLATION SEAM: K8S VERSION MANAGEMENT.
@@ -71,26 +67,105 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
   workload_identity_pool_provider_id = "github"
   oidc { issuer_uri = "https://token.actions.githubusercontent.com" }
-  attribute_mapping = { "google.subject" = "assertion.sub" }
-  # TODO(lab-part-a-gcp): add attribute_condition restricting to your repo, + a google_service_account
-  # and an IAM binding letting this pool impersonate it.
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.repository" = "assertion.repository"
+  }
+  # Restrict workload identity to your GitHub repository
+  attribute_condition = "attribute.repository == 'thealiceiris/incident_replay_system'"
 }
 
-# Your capstone's primary managed data resource (GENERIC placeholder).
-# TODO(lab-part-a-gcp): replace with your real resource. Example below = a GCS bucket.
-# resource "google_storage_bucket" "capstone" {
-#   name     = "${var.name}-data"
-#   location = var.region
-#   labels   = var.tags
-#
-#   # TRANSLATION SEAM: OBJECT VERSIONING SEMANTICS.
-#   # S3 versioning uses status="Enabled" + delete markers + lifecycle rules. GCS versioning KEEPS
-#   # versions INDEFINITELY until a lifecycle_rule removes them — there is no delete-marker concept.
-#   # If your AWS design leaned on S3's automatic delete-marker + lifecycle, you MUST add an explicit
-#   # lifecycle_rule here or you will silently leak storage cost.
-#   versioning { enabled = var.data_layer_config.versioning_enabled }
-#   # TODO(lab-part-a-gcp): add lifecycle_rule { } to match your AWS retention intent.
-# }
+# Service account for GitHub Actions to impersonate
+resource "google_service_account" "github_actions" {
+  account_id   = "${var.name}-gha-sa"
+  display_name = "GitHub Actions service account for ${var.name}"
+}
+
+# Allow the GitHub workload identity pool to impersonate this service account
+resource "google_service_account_iam_member" "github_actions_impersonate" {
+  service_account_id = google_service_account.github_actions.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github.workload_identity_pool_id}/attribute.repository/thealiceiris/incident_replay_system"
+}
+
+# Your capstone's primary managed data resource — GCS bucket for incident replay data.
+resource "google_storage_bucket" "capstone" {
+  name     = "${var.name}-data"
+  location = var.region
+  labels   = var.tags
+
+  # TRANSLATION SEAM: OBJECT VERSIONING SEMANTICS.
+  # S3 versioning uses status="Enabled" + delete markers + lifecycle rules. GCS versioning KEEPS
+  # versions INDEFINITELY until a lifecycle_rule removes them — there is no delete-marker concept.
+  # If your AWS design leaned on S3's automatic delete-marker + lifecycle, you MUST add an explicit
+  # lifecycle_rule here or you will silently leak storage cost.
+  versioning {
+    enabled = var.data_layer_config.versioning_enabled
+  }
+
+  # Automatically delete old versions after retention_days to manage storage cost
+  lifecycle_rule {
+    condition {
+      age = var.data_layer_config.retention_days
+    }
+    action {
+      type = "Delete"
+    }
+  }
+}
+
+resource "google_sql_database" "database" {
+  name     = "${var.name}-pg-db"
+  instance = google_sql_database_instance.instance.name
+}
+
+# See versions at https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/sql_database_instance#database_version
+resource "google_sql_database_instance" "instance" {
+  name                = "${var.name}-pg-instance"
+  region              = var.region
+  database_version    = "POSTGRES_15"
+  deletion_protection = false
+  settings {
+    tier              = "db-g1-small"
+    availability_type = "ZONAL"
+
+    backup_configuration {
+      enabled = true
+    }
+
+    # PostgreSQL logging flags
+    database_flags {
+      name  = "log_connections"
+      value = "on"
+    }
+    database_flags {
+      name  = "log_disconnections"
+      value = "on"
+    }
+    database_flags {
+      name  = "log_checkpoints"
+      value = "on"
+    }
+    database_flags {
+      name  = "log_lock_waits"
+      value = "on"
+    }
+    database_flags {
+      name  = "log_statement"
+      value = "all"
+    }
+    database_flags {
+      name  = "cloudsql_iam_authentication"
+      value = "on"
+    }
+  }
+}
+
+resource "google_sql_user" "users" {
+  name     = var.db_username
+  instance = google_sql_database_instance.instance.name
+  password = var.db_password
+}
 
 output "cluster_endpoint" { value = google_container_cluster.this.endpoint }
 output "workload_identity_pool" { value = google_iam_workload_identity_pool.github.name }

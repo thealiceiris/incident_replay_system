@@ -13,7 +13,6 @@ The primary users of the Incident Replay System are software engineers and platf
 
 ## Consequences
 
-<!-- Mon: SKIP. Thu lab Part A: >= 3 bullets, mixing positive + negative + neutral. -->
 
 **Positive:**
 - TODO

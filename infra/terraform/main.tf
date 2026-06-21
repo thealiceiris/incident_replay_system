@@ -21,19 +21,21 @@
 # TODO(lab-part-a-aws): uncomment the block above if AWS is your chosen cloud.
 
 # --- Chosen cloud: GCP path --------------------------------------------------
-# provider "google" {
-#   project = "TODO-your-gcp-project-id"
-#   region  = var.region
-# }
-# module "cluster" {
-#   source            = "./modules/gcp"
-#   name              = var.name
-#   region            = var.region
-#   tags              = var.tags
-#   node_size         = var.node_size
-#   replicas          = var.replicas
-#   data_layer_config = var.data_layer_config
-# }
+provider "google" {
+  project = "incident-replay-system"
+  region  = var.region
+}
+module "cluster" {
+  source            = "./modules/gcp"
+  name              = var.name
+  region            = var.region
+  tags              = var.tags
+  node_size         = var.node_size
+  replicas          = var.replicas
+  data_layer_config = var.data_layer_config
+  db_username       = var.db_username
+  db_password       = var.db_password
+}
 # TODO(lab-part-a-gcp): uncomment the block above if GCP is your chosen cloud.
 
-# output "cluster_endpoint" { value = module.cluster.cluster_endpoint }
+output "cluster_endpoint" { value = module.cluster.cluster_endpoint }

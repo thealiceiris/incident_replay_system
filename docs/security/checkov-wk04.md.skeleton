@@ -16,7 +16,9 @@ Required: the scan summary + >= 1 fix narrative + >= 1 conscious-defer-with-rati
 ## Scan summary
 
 <TODO: paste the passed/failed counts + the failed check IDs (CKV_AWS_* / CKV_GCP_*). Don't paste all
-50 lines — summarize: N passed, M failed; list the failed rule IDs.>
+50 lines — summarize: N passed, M failed; list the failed rule Imkdir -p docs/security
+cp alice-w4-checkov-acceptance.md docs/security/checkov-wk04.md
+Ds.>
 
 ## Prediction vs actual
 
