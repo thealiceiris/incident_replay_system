@@ -1,0 +1,24 @@
+
+C4Container
+    title Container diagram — Incident Replay System
+
+    Person(engineer, "Site Reliability Engineer", "Investigates distributed-system failures and reconstructs incident timelines")
+
+    System_Ext(services, "Distributed Services", "Applications and services generating logs and trace events")
+
+    Container_Boundary(c1, "Incident Replay System") {
+
+        Container(api, "Ingestion API Service", "FastApi", "Receives log events and validates trace metadata")
+
+        Container(replay, "Replay API Service", "FastApi", "Provides replay timelines and incident reconstruction queries")
+
+        ContainerDb(db, "PostgreSQL", "PostgreSQL 16", "Stores ordered events, trace IDs, timestamps, and replay metadata")
+
+    }
+
+    Rel(services, api, "Sends log events", "HTTPS/JSON")
+    Rel(api, db, "Writes validated events", "TCP 5432")
+    Rel(replay, db, "Reads replay timelines", "TCP 5432")
+    Rel(engineer, replay, "Queries incident timelines", "HTTPS/JSON")
+
+    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")

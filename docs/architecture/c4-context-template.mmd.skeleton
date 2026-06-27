@@ -1,0 +1,50 @@
+%% C4 Level 1 (System Context) skeleton for cohort-7 W3.
+%%
+%% Copy this file (`make c4-init`) to docs/architecture/c4-context.mmd, fill
+%% in the TODOs against YOUR capstone, commit, push.
+%%
+%% RENDERING NOTE: GitHub renders Mermaid inside `.md` files (fenced ```mermaid
+%% blocks), but does NOT natively render raw `.mmd` files in the file viewer
+%% as of cohort-7 launch. Two options:
+%%
+%%   1. Validate locally — paste the content (without these %% comment lines)
+%%      into https://mermaid.live to preview, then commit the `.mmd`.
+%%   2. Optional: ALSO embed the same diagram into a `docs/architecture/README.md`
+%%      with a fenced ```mermaid block — that file WILL render in GitHub PR view.
+%%
+%% The `.mmd` is your authoritative source artifact (what Peer Review 1 grades);
+%% the `.md` embedding (if used) is convenience for review-time visibility.
+%%
+%% CONTEXT level shows: USERS + EXTERNAL SYSTEMS + the SYSTEM-UNDER-DESIGN.
+%% That's it — boundaries only. No internal implementation; that's Container
+%% level (`c4-container.mmd`).
+%%
+%% Reference: c4model.com/diagrams/system-context + c4model.com/notation
+
+C4Context
+    title System Context — TODO(your capstone name)
+
+    Person(user_a, "TODO_role", "TODO one-line description of who this is and what they need")
+    Person(user_b, "TODO_other_role_OPTIONAL", "TODO only add if your capstone has a 2nd distinct user role")
+
+    System_Ext(ext_a, "TODO_external_system_A", "TODO what it does + why your capstone touches it")
+    System_Ext(ext_b, "TODO_external_system_B_OPTIONAL", "TODO description")
+
+    System(capstone, "TODO_your_capstone_name", "TODO one-line description of what your capstone DOES, not how")
+
+    Rel(user_a, capstone, "TODO_verb", "TODO_protocol_HTTPS_or_gRPC")
+    Rel(capstone, ext_a, "TODO_verb", "TODO_protocol")
+    BiRel(capstone, ext_b, "TODO_only_if_bidirectional", "TODO_protocol")
+
+%% PRE-COMMIT CHECKLIST:
+%%
+%% - [ ] At least 1 Person (User/role) named with description
+%% - [ ] At least 1 System_Ext (external system) named with description
+%% - [ ] System (your capstone) named with description
+%% - [ ] Every Rel has a verb (the action) AND a protocol
+%% - [ ] No TODO_ placeholders left in the rendered output
+%% - [ ] Validates in https://mermaid.live without parse errors
+%%
+%% EXEMPLARY (Peer Review 1): Context level demonstrates clean boundary
+%% discipline (every external system has a clear reason for inclusion;
+%% no internal containers leaked into Context level).

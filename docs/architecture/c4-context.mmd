@@ -1,0 +1,15 @@
+
+%% Reference: c4model.com/diagrams/system-context + c4model.com/notation
+
+C4Context
+    title System Context — Incident Replay System
+
+    Person(engineer, "Site Reliability Engineer", "Investigates distributed-system failures and reconstructs incident timelines")
+
+    System_Ext(services, "Distributed Services", "Applications and services generating logs and trace events")
+
+    System(capstone, "Incident Replay System", "Collects, stores, and reconstructs distributed-system events for incident investigation")
+
+    Rel(engineer, capstone, "Queries replay timelines and investigates incidents", "HTTPS/JSON")
+
+    Rel(services, capstone, "Sends logs and trace events", "HTTPS/JSON")
