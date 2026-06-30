@@ -10,72 +10,51 @@ The primary users of the Incident Replay System are software engineers and platf
 
 > We will provision on GCP with local state, Terraform >= 1.9, and the Google provider pinned to `~> 7.0`. Local state is sufficient for the current solo-developer workflow, while provider version pinning ensures reproducible deployments and protects the project from unexpected breaking changes introduced by future provider releases.
 
-
 ## Consequences
 
-
 **Positive:**
-- TODO
+
+* Infrastructure is fully version-controlled, making deployments reproducible and reducing configuration drift.
+* GKE and Cloud SQL reduce operational overhead by providing managed Kubernetes and managed database services.
+* Version pinning improves deployment stability and makes troubleshooting more predictable.
 
 **Negative:**
-- TODO
+
+* Local Terraform state does not support collaboration or state locking, making it unsuitable for a multi-developer workflow.
+* Using managed cloud services introduces provider-specific dependencies that reduce portability.
+* Provisioning managed infrastructure incurs cloud costs if resources are not destroyed after use.
 
 **Neutral:**
-- TODO
+
+* A remote Terraform backend will likely be introduced as the project grows beyond a solo-developer workflow.
+* Cross-cloud portability is achieved through separate Terraform modules rather than identical cloud resources.
+* Additional infrastructure hardening (private networking, encryption policies, and security controls) will be implemented in later iterations.
 
 ## Considered options
 
+### Option A — AWS (EKS + RDS)
 
+* **What it is:** Provision the infrastructure using GKE's equivalent services in AWS, namely EKS for Kubernetes and RDS for PostgreSQL.
+* **Why rejected:** While AWS provides comparable capabilities, GCP offers a simpler managed Kubernetes experience and lower expected operational complexity for a solo developer working within the course budget.
 
-### Option A — TODO
-- **What it is:** TODO
-- **Why rejected:** TODO
+### Option B — Remote Terraform State
 
-### Option B — TODO
-- **What it is:** TODO
-- **Why rejected:** TODO
+* **What it is:** Store Terraform state remotely using a shared backend such as Google Cloud Storage instead of a local state file.
+* **Why rejected:** The project is currently maintained by a single developer, so a local backend provides a simpler setup. Remote state will become more appropriate when collaboration, state locking, and shared infrastructure management are required.
 
 ## Team considerations
 
-<!--
-Mon: SKIP. Thu lab Part A: FOUR distinct beats (not collapsible) — carries the W3 structure.
-1. Solo-pilot scale (today) — what does being one person constrain/simplify in this IaC choice?
-2. Future-team scale (5 people, 18 months) — which infra seam would they own separately?
-3. DORA archetype — which 2025 archetype is this service targeting; why is the IaC choice compatible?
-4. TT team type — if a 5-person team owned this, which type (stream-aligned / platform / enabling /
-   complicated-subsystem); why does the IaC choice support that ownership?
-Reverse Conway lens: your module structure (shared contract + cloud modules) is the first draft of
-the future team's boundaries.
--->
-
-- **Solo-pilot scale (today):** TODO
-- **Future-team scale (5 people, 18 months):** TODO
-- **DORA archetype target:** TODO
-- **Future TT team type:** TODO
+* **Solo-pilot scale (today):** Local Terraform state, managed cloud services, and a single GCP environment minimize operational overhead and allow rapid iteration without additional infrastructure management.
+* **Future-team scale (5 people, 18 months):** Infrastructure responsibilities can be separated into networking, Kubernetes platform, IAM, and database ownership, with remote Terraform state and CI/CD supporting collaborative development.
+* **DORA archetype target:** This project targets a high-performing software delivery workflow by treating infrastructure as code, automating provisioning, and enabling repeatable deployments with minimal manual intervention.
+* **Future TT team type:** A stream-aligned team owning the Incident Replay System would benefit from reusable Terraform modules and managed platform services while collaborating with a platform team responsible for shared cloud infrastructure.
 
 ## Data-layer capability tie (Outcome 7 — DORA AI Capability #2)
 
-<!--
-Mon: SKIP. Thu lab Part A: name >= 1 data-layer property your infra/terraform/ configures that
-DOWNSTREAM AI-ops work (W9) will consume. Examples: RDS parameter group with query logging on;
-S3/GCS versioning for an audit trail; BigQuery time-partitioning; a managed vector/embedding store.
-Name the property + which Terraform resource sets it + how W9 will consume it.
--->
-
-- **Data-layer property + Terraform resource:** TODO
-- **How W9 AI-ops will consume it:** TODO
+* **Data-layer property + Terraform resource:** Cloud SQL (PostgreSQL) configured through Terraform provides durable relational storage for incidents, replay metadata, timestamps, and audit records.
+* **How W9 AI-ops will consume it:** The stored incident history and replay metadata provide structured operational data that can be queried and analyzed to identify recurring failures, detect operational trends, and support AI-assisted incident analysis.
 
 ## Integration seam (W3 -> W4 realization + W5 pre-provision)
 
-<!--
-Mon: SKIP. Thu lab Part A. Outcome 8 — two required rows:
-1. W3 seam realized — take the seam from docs/architecture/tradeoffs.md + name the Terraform line(s)
-   that pre-provision its infrastructure side.
-2. W5 OIDC pre-provision — name the OIDC provider (AWS) / workload identity pool (GCP) your module
-   creates, which W5's GitHub Actions pipeline consumes for cloud auth.
--->
-
-- **W3 seam -> W4 Terraform realization:** TODO — <one sentence; the specific resource/attribute>
-- **W5 auth pre-provision (OIDC / workload identity):** TODO — <the resource your module creates>
-
----
+* **W3 seam -> W4 Terraform realization:** Terraform provisions the GKE cluster, Cloud SQL instance, networking, IAM configuration, and Workload Identity resources that establish the infrastructure required for secure communication between application services and managed cloud resources.
+* **W5 auth pre-provision (OIDC / workload identity):** Terraform provisions a Workload Identity Pool and its associated service account bindings so that the GitHub Actions pipeline in W5 can authenticate securely to GCP using short-lived federated credentials instead of long-lived service account keys.
