@@ -1,6 +1,6 @@
 ## Status
 
-`proposed`
+`accepted`
 
 ## Context
 
@@ -25,10 +25,7 @@ The primary users of the Incident Replay System are software engineers and platf
 
 ## Considered options
 
-<!--
-Mon: SKIP. Thu lab Part A: >= 2 rejected alternatives, one paragraph each. Real options a cohort-mate
-might reasonably pick — e.g. the OTHER cloud; remote-vs-local state; pinned-vs-floating providers.
--->
+
 
 ### Option A — TODO
 - **What it is:** TODO
@@ -82,19 +79,3 @@ Mon: SKIP. Thu lab Part A. Outcome 8 — two required rows:
 - **W5 auth pre-provision (OIDC / workload identity):** TODO — <the resource your module creates>
 
 ---
-
-<!--
-PRE-COMMIT CHECKLIST (Thu lab Part A):
-- [ ] Status set (`proposed` Mon; `accepted` after lab)
-- [ ] Context names a concrete user + the chosen cloud + why
-- [ ] Decision records cloud-path + state-backend + Terraform version + >= 1 provider-lock rationale
-- [ ] Consequences >= 3 bullets (positive + negative)
-- [ ] Considered options >= 2 with what-it-is + why-rejected
-- [ ] Team considerations — all FOUR beats (solo / future-team / DORA archetype / TT type)
-- [ ] Data-layer capability tie names >= 1 property + W9 consumption (Outcome 7)
-- [ ] Integration seam names the W3 realization AND the W5 OIDC / workload-identity pre-provision
-- [ ] File renamed to a decision-specific slug if you wish
-
-All boxes = Peer Review 1 Proficient on the IaC-ADR axis. Exemplary: a 2nd data-layer property + a
-fuller multi-seam tie in tradeoffs.md.
--->
