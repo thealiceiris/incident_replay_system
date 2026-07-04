@@ -4,10 +4,16 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: incident-replay-db
+    image: postgres:16
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: incident_replay
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-incident_replay}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     volumes:
@@ -23,14 +29,21 @@ services:
     container_name: incident-replay-api
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/incident_replay
+  api:
+    build:
+      context: ./src/backend
     ports:
       - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - .:/app
+    volumes: # Mounts the backend source code into the container for live reloading
+      - ./src/backend:/app
+      - postgres
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
 
 volumes:
   postgres_data:
+  pgdata:

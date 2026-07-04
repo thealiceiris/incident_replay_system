@@ -8,17 +8,14 @@ C4Container
 
     Container_Boundary(c1, "Incident Replay System") {
 
-        Container(api, "Ingestion API Service", "FastApi", "Receives log events and validates trace metadata")
-
-        Container(replay, "Replay API Service", "FastApi", "Provides replay timelines and incident reconstruction queries")
+        Container(api, "Incident API Service", "Python FastAPI", "Single service exposing ingestion and replay endpoints via separate routers (/events, /replay)")
 
         ContainerDb(db, "PostgreSQL", "PostgreSQL 16", "Stores ordered events, trace IDs, timestamps, and replay metadata")
 
     }
 
-    Rel(services, api, "Sends log events", "HTTPS/JSON")
-    Rel(api, db, "Writes validated events", "TCP 5432")
-    Rel(replay, db, "Reads replay timelines", "TCP 5432")
-    Rel(engineer, replay, "Queries incident timelines", "HTTPS/JSON")
+    Rel(services, api, "Sends structured log/trace events", "HTTPS/JSON")
+    Rel(engineer, api, "Queries replay timeline", "HTTPS/JSON")
+    Rel(api, db, "Reads/writes events and incidents", "SQL")
 
     UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
