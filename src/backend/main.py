@@ -17,9 +17,6 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localho
 engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Create tables on startup
-Base.metadata.create_all(bind=engine)
-
 
 def get_db():
     db = SessionLocal()
@@ -40,10 +37,13 @@ class IncidentResponse(BaseModel):
     name: str
     status: str
     created_at: datetime
-    metadata: Optional[dict] = None
+    # Incident.metadata is SQLAlchemy's own MetaData registry, not the JSON
+    # column (named incident_metadata to avoid that clash) - alias it back.
+    metadata: Optional[dict] = Field(default=None, validation_alias="incident_metadata")
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class EventCreate(BaseModel):
@@ -77,6 +77,7 @@ class TimelineResponse(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    Base.metadata.create_all(bind=engine)
     print("Starting Incident Replay System")
     yield
     # Shutdown
@@ -114,7 +115,7 @@ def create_incident(incident: IncidentCreate, db: Session = Depends(get_db)):
         id=str(uuid4()),
         name=incident.name,
         status="active",
-        metadata=incident.metadata or {}
+        incident_metadata=incident.metadata or {}
     )
     db.add(db_incident)
     db.commit()
