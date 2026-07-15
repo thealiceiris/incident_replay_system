@@ -1,0 +1,19 @@
+# W5 kustomization — the entrypoint for `kubectl apply -k deploy/` (deploy-staging.yaml calls this).
+#
+# Skeleton for cohort-7 W5. Copy to deploy/kustomization.yaml. This bundles the canary Rollout + its
+# AnalysisTemplate so a single `kubectl apply -k deploy/ -n staging` applies the whole delivery plane.
+# The starter ships this because `kubectl apply -k` requires a kustomization.yaml to exist.
+#
+# flags.json is NOT a kubernetes manifest — flagd reads it from disk (sidecar or local daemon), so it
+# is intentionally NOT listed under `resources`. Add a flagd sidecar/Deployment manifest here only if
+# you run flagd in-cluster (the W5 lab runs flagd locally; see src/flag_integration.example.*).
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: staging
+
+resources:
+  - rollouts/capstone-rollout.yaml
+  - rollouts/analysis-template.yaml
+  # TODO(lab-part-b): add your Service + Ingress if not provisioned by the W4 Terraform stack.

@@ -1,0 +1,120 @@
+name: week-05-check
+
+# W5 (Deliver/CI-CD) artifacts live at FLAT capstone-repo paths (.github/, pipelines/, deploy/, src/,
+# docs/, ai-journal/). Copy this workflow into your capstone repo's .github/workflows/. Two HARD gates
+# (committed long-lived cloud credentials = catastrophic security discipline; AI journal = readiness);
+# everything else is a warning so an in-progress build never blocks you. This is the COURSE readiness
+# check — separate from your own ci.yaml (your capstone's real test+deploy pipeline).
+#
+# Security note: every `run:` below uses only static strings + git — no ${{ github.event.* }}
+# untrusted input is interpolated into a shell command.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/**'
+      - 'pipelines/**'
+      - 'deploy/**'
+      - 'src/**'
+      - 'docs/**'
+      - 'ai-journal/**'
+      - '.github/workflows/week-05-check.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/**'
+      - 'pipelines/**'
+      - 'deploy/**'
+      - 'src/**'
+      - 'docs/**'
+      - 'ai-journal/**'
+      - '.github/workflows/week-05-check.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  week-05-check:
+    name: week-05-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: No long-lived cloud credentials committed (HARD FAIL - catastrophic security discipline)
+        run: |
+          if git grep -nE 'AKIA[0-9A-Z]{16}|ya29\.[0-9A-Za-z_-]+|-----BEGIN [A-Z ]*PRIVATE KEY-----|"private_key":[[:space:]]*"' -- . ':!*.skeleton' ; then
+            echo "::error title=Cloud credential committed::A long-lived cloud credential (AWS access key / GCP service-account key) is tracked in git. W5 deploy auth is OIDC - there must be NO static keys. Remove it (git rm --cached), ROTATE it immediately, switch to OIDC. Automatic Not-Yet-Met on Peer Review 1."
+            exit 1
+          fi
+          echo "OK: no long-lived cloud credentials committed."
+
+      - name: AI journal entry (Sun-deliverable; HARD FAIL - cohort-readiness signal)
+        run: |
+          if [ -f ai-journal/wk05-ci-cd-build.md ]; then
+            echo "AI journal path exists: ai-journal/wk05-ci-cd-build.md"
+          else
+            echo "::error title=Missing AI journal::ai-journal/wk05-ci-cd-build.md is missing. After the Wed lab, run 'make ai-journal-init', fill the 6 points + DORA-evolution paragraph (Arc-2 LOCKED format), commit. Required by Sun 23:59 GMT."
+            exit 1
+          fi
+
+      - name: CI/CD ADR path check (Mon-deliverable; warning, does NOT gate CI)
+        run: |
+          if [ -f pipelines/adr-wk05-ci-cd.md ]; then
+            echo "CI/CD ADR path exists."
+          else
+            echo "::warning title=CI/CD ADR pending::pipelines/adr-wk05-ci-cd.md not yet committed. Run 'make adr-init'; Mon = CI tool + canary SLI + flag-wrap location."
+          fi
+
+      - name: CI pipeline path check (Part A; warning, does NOT gate CI)
+        run: |
+          if [ -f .github/workflows/ci.yaml ]; then
+            echo "CI pipeline exists: .github/workflows/ci.yaml"
+          else
+            echo "::warning title=CI pipeline pending::.github/workflows/ci.yaml not yet committed. Wed lab Part A. Copy the week-05 starter, uncomment your stack's TODO(lab-part-a) block."
+          fi
+
+      - name: Deploy workflow path check (Part A; warning, does NOT gate CI)
+        run: |
+          if [ -f .github/workflows/deploy-staging.yaml ]; then
+            echo "Deploy workflow exists: .github/workflows/deploy-staging.yaml"
+          else
+            echo "::warning title=Deploy workflow pending::.github/workflows/deploy-staging.yaml not yet committed. Wed lab Part A - OIDC staging deploy."
+          fi
+
+      - name: Canary Rollout + AnalysisTemplate path check (Part B; warning, does NOT gate CI)
+        run: |
+          if [ -f deploy/rollouts/capstone-rollout.yaml ] && [ -f deploy/rollouts/analysis-template.yaml ]; then
+            echo "Canary Rollout + AnalysisTemplate exist."
+          else
+            echo "::warning title=Canary config pending::deploy/rollouts/capstone-rollout.yaml + analysis-template.yaml not yet committed. Wed lab Part B."
+          fi
+
+      - name: Feature-flag config path check (Part C; warning, does NOT gate CI)
+        run: |
+          if [ -f deploy/flags/flags.json ]; then
+            echo "Feature-flag config exists: deploy/flags/flags.json"
+          else
+            echo "::warning title=Feature-flag config pending::deploy/flags/flags.json not yet committed. Wed lab Part C (OpenFeature + flagd)."
+          fi
+
+      - name: Lab reflections + flag-integration path check (Parts B/C; warning, does NOT gate CI)
+        run: |
+          for f in deploy/rollouts/reflection.md deploy/flags/reflection.md; do
+            if [ -f "$f" ]; then echo "Exists: $f"; else echo "::warning title=Reflection pending::$f not yet committed (Wed lab one-paragraph reflection)."; fi
+          done
+          if ls src/flag_integration.* >/dev/null 2>&1; then
+            echo "Flag-integration code exists."
+          else
+            echo "::warning title=Flag integration pending::src/flag_integration.* not yet committed (Wed lab Part C - OpenFeature client wiring)."
+          fi
+
+      - name: Deploy-frequency self-measurement path check (Outcome 6; warning, does NOT gate CI)
+        run: |
+          if [ -f docs/deploy-frequency-wk05.md ]; then
+            echo "Deploy-frequency self-measurement exists."
+          else
+            echo "::warning title=Deploy-frequency pending::docs/deploy-frequency-wk05.md not yet committed. Run 'make measure-deploys', name your DORA 2025 bucket. Due Sun."
+          fi

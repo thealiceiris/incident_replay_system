@@ -1,0 +1,64 @@
+# W5 Argo Rollouts `Rollout` — canary progressive delivery for the Incident Replay System API.
+#
+# Drop-in replacement for a plain Deployment: the Rollout CRD owns the pods and drives the canary.
+#
+# Canary contract (teaching invariant — do not collapse the analysis steps):
+#   20% traffic -> pause -> analysis -> 50% -> pause -> analysis -> 100%
+# The `analysis` steps are what make this a CANARY (a deploy that PAUSES to read measurements) instead
+# of just a staged deploy.
+#
+# Install the controller once per cluster:
+#   helm repo add argo https://argoproj.github.io/argo-helm
+#   helm install argo-rollouts argo/argo-rollouts -n argo-rollouts --create-namespace
+# Watch a rollout live:
+#   kubectl argo rollouts get rollout incident-replay --watch -n staging
+
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: incident-replay
+  namespace: staging
+spec:
+  # 10 replicas so the canary weights map to WHOLE pods without a traffic-management provider: plain
+  # Argo approximates `setWeight` by pod count (20%->2, 50%->5, 100%->10 of 10). Exact percentage
+  # routing needs a traffic provider (NGINX/SMI/Gateway API) - a later-week add; W5 teaches pod-count
+  # canary. If 10 pods strain the GKE Autopilot cluster, drop to 5 (50% then rounds up to 3 of 5 = 60%).
+  replicas: 10
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: incident-replay
+  template:
+    metadata:
+      labels:
+        app: incident-replay
+    spec:
+      containers:
+        - name: incident-replay
+          # Matches the build/push convention documented in src/backend/README.md.
+          image: gcr.io/incident-replay-system/incident-replay-api:latest
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          # TODO(lab-part-b): wire DATABASE_URL (Cloud SQL connection string, see
+          # src/backend/README.md "Deploying to GCP") once a Secret/ConfigMap manifest exists for it -
+          # not yet provisioned by the W4 Terraform stack or committed under deploy/.
+  strategy:
+    canary:
+      steps:
+        - setWeight: 20
+        - pause: { duration: 30s }
+        - analysis:
+            templates:
+              - templateName: incident-replay-analysis
+        - setWeight: 50
+        - pause: { duration: 30s }
+        - analysis:
+            templates:
+              - templateName: incident-replay-analysis
+        - setWeight: 100

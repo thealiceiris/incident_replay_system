@@ -1,0 +1,56 @@
+# W5 CI pipeline — test gate (unit + integration + lint + static analysis), fail-closed.
+#
+# This pipeline FAILS CLOSED: any red signal (test fail, lint, type error) blocks the PR once the
+# branch-protection rule in .github/branch-protection.yaml is applied via repo Settings -> Branches.
+#
+# Security: every `run:` below uses static strings only — no ${{ github.event.* }} untrusted input is
+# interpolated into a shell command. `permissions: contents: read` is set at the workflow level
+# (least privilege).
+
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Least privilege: this workflow only reads the repo. The deploy workflow requests id-token separately.
+permissions:
+  contents: read
+
+jobs:
+  test-gate:
+    name: test-gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Static analysis (mypy)
+        run: mypy .
+
+      - name: Unit + integration tests (pytest -> JUnit XML)
+        run: pytest --cov --junitxml=test-results/junit.xml
+
+      - name: Publish test results (JUnit XML artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-test-results
+          path: src/backend/test-results/
+          if-no-files-found: warn

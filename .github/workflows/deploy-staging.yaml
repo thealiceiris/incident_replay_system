@@ -1,0 +1,55 @@
+# W5 staging deploy — runs on merge to main; OIDC cloud auth (no long-lived creds); kubectl apply -k.
+#
+# Deploys to the `staging` namespace only (the GKE Autopilot cluster provisioned by the W4 Terraform
+# stack, infra/terraform/modules/gcp). No prod this week — prod deploys begin at W8.
+#
+# Role ARNs / WIF provider strings are identifiers, NOT secrets: committing them is fine. Access keys /
+# service-account JSON are secrets: NEVER commit them (the week-05-check CI gate hard-fails on them).
+
+name: deploy-staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# OIDC requires id-token: write. contents: read to checkout. Nothing else.
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-staging:
+    name: deploy-staging
+    runs-on: ubuntu-latest
+    # NOTE: intentionally NO `environment:` here. A GitHub `environment:` changes the OIDC token `sub`
+    # claim to `repo:<org>/<repo>:environment:<name>` — but the W4 trust policy
+    # (infra/terraform/modules/gcp/main.tf, google_iam_workload_identity_pool_provider.github)
+    # authorizes `repo:thealiceiris/incident_replay_system:ref:refs/heads/main`. Adding an
+    # `environment:` here breaks OIDC auth unless the trust-policy sub is widened to match.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # GCP OIDC (Workload Identity Federation). The pool + provider + service account are provisioned
+      # by infra/terraform/modules/gcp/main.tf:
+      #   - workload_identity_pool_id  = incident-replay-system-gha-pool
+      #   - provider_id                = github
+      #   - service account            = incident-replay-system-gha-sa@incident-replay-system.iam.gserviceaccount.com
+      # TODO: <GCP_PROJECT_NUMBER> is not knowable statically - after `terraform apply`, fill it with:
+      #   gcloud projects describe incident-replay-system --format='value(projectNumber)'
+      - name: Authenticate to Google Cloud (WIF, no static keys)
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: incident-replay-system
+          workload_identity_provider: projects/<GCP_PROJECT_NUMBER>/locations/global/workloadIdentityPools/incident-replay-system-gha-pool/providers/github
+          service_account: incident-replay-system-gha-sa@incident-replay-system.iam.gserviceaccount.com
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v3
+        with:
+          cluster_name: incident-replay-system
+          location: us-central1
+
+      - name: Deploy to staging (canary via Argo Rollouts)
+        run: kubectl apply -k deploy/ -n staging

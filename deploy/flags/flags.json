@@ -1,0 +1,14 @@
+{
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "_comment": "flagd watches this file and reloads on change - flip defaultVariant from 'off' to 'on' and the feature goes live with NO redeploy (`make flag-flip` does this). See pipelines/adr-wk05-ci-cd.md Decision 3 for why PATCH /incidents/{id} status validation is wrapped. Run flagd: `flagd start --uri file:./deploy/flags/flags.json`.",
+  "flags": {
+    "strict-status-validation": {
+      "state": "ENABLED",
+      "variants": {
+        "on": true,
+        "off": false
+      },
+      "defaultVariant": "off"
+    }
+  }
+}

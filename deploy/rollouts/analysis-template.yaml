@@ -1,0 +1,49 @@
+# W5 Argo Rollouts `AnalysisTemplate` — the SLO gate that promotes-or-rolls-back the canary.
+#
+# The Rollout's `analysis` steps (see capstone-rollout.yaml) call this template between traffic
+# weights. If the job exits non-zero, Argo Rollouts AUTO-ROLLS-BACK to the previous version.
+#
+# SLI choice: pod-restart count (see pipelines/adr-wk05-ci-cd.md Decision 2 and
+# docs/pre-read-reflection-wk05.md P3). The dominant failure mode for this service is a bad DB
+# migration or an unreachable Cloud SQL instance at startup, which crash-loops the FastAPI pod - a
+# pod-restart count is a direct, cheap signal for that failure mode without needing Prometheus (W6).
+#
+# This uses the `job` provider (not `web`): there is no metrics endpoint to scrape yet, so the job
+# queries the Kubernetes API directly via kubectl and is judged by its EXIT CODE, not parsed JSON.
+# Do NOT add a `failureCondition` alongside a `job` provider - the job's stdout is ignored, so the
+# threshold would never fire.
+#
+# RBAC: this job's ServiceAccount needs `get`/`list` on pods in the `staging` namespace (the GKE
+# Autopilot default compute service account does not grant this by default). Not yet provisioned here
+# - add a Role + RoleBinding scoped to `staging` before running this in the Wed lab, or the job will
+# fail with a permissions error rather than a real SLI breach.
+
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: incident-replay-analysis
+  namespace: staging
+spec:
+  metrics:
+    - name: pod-restart-count
+      interval: 30s
+      count: 3                  # evaluate 3 times per analysis step
+      failureLimit: 1           # one failing evaluation trips the rollback
+      provider:
+        job:
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: measure-pod-restarts
+                    image: bitnami/kubectl:latest   # TODO(lab-part-b): pin a digest in W7 (supply-chain)
+                    command: ["/bin/sh", "-c"]
+                    args:
+                      - |
+                        restarts=$(kubectl get pods -n staging -l app=incident-replay \
+                          -o jsonpath='{range .items[*]}{.status.containerStatuses[0].restartCount}{"\n"}{end}' \
+                          | awk '{s+=$1} END {print s+0}')
+                        echo "total pod restarts across incident-replay pods: $restarts"
+                        [ "$restarts" -le 2 ]

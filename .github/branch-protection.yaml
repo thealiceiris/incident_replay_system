@@ -1,0 +1,32 @@
+# W5 branch-protection REFERENCE — the settings that make the CI gate actually fail-closed.
+#
+# This file is documentation, NOT an applied config. GitHub branch protection is repo Settings, not a
+# committed file — the `ci.yaml` test gate only blocks a merge once you apply a rule like this in your
+# repo's Settings -> Branches -> Add branch ruleset (or classic branch-protection rule) on `main`.
+#
+# Apply via the GitHub UI (Settings -> Branches) OR the gh CLI:
+#
+#   gh api -X PUT repos/thealiceiris/incident_replay_system/branches/main/protection \
+#     --input branch-protection.json
+#
+# (translate the YAML below to the gh API JSON shape; the UI is simpler for the pilot).
+#
+# Part A acceptance depends on this: without it, a red CI run does NOT block the PR, and you can't
+# demonstrate the failed-then-passed-then-merged cycle the lab requires.
+
+branch: main
+
+required_status_checks:
+  strict: true            # PR branch must be up to date with main before merging
+  contexts:
+    - test-gate           # the job name from ci.yaml — merge blocked until it is green
+
+enforce_admins: true      # the gate applies to you too (solo pilot — no bypass)
+
+required_pull_request_reviews:
+  required_approving_review_count: 0   # solo pilot: 0; Cohort 2+ pairs may set 1 (partner review)
+
+restrictions: null         # no push restrictions in the pilot
+
+allow_force_pushes: false  # protect main's history
+allow_deletions: false
