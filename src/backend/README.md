@@ -51,9 +51,10 @@ curl http://localhost:8000/incidents/{INCIDENT_ID}/timeline
 |--------|----------|-------------|
 | `POST` | `/incidents` | Create incident |
 | `POST` | `/incidents/{id}/events` | Ingest event (out-of-order OK) |
-| `GET` | `/incidents/{id}/timeline` | Get ordered timeline |
+| `GET` | `/incidents/{id}/timeline` | Get ordered timeline for one incident |
+| `GET` | `/traces/{trace_id}/timeline` | Get ordered events sharing a trace ID, across incidents |
 | `GET` | `/incidents` | List all incidents |
-| `PATCH` | `/incidents/{id}` | Update incident status |
+| `PATCH` | `/incidents/{id}` | Update incident status (gated by the `strict-status-validation` flag) |
 | `GET` | `/health` | Health check |
 
 ## Event Schema
@@ -68,6 +69,25 @@ curl http://localhost:8000/incidents/{INCIDENT_ID}/timeline
 ```
 
 **Key:** `timestamp` is when the event *actually occurred*, not when the system received it. This enables replay to work even if events arrive out of order.
+
+`trace_id`/`span_id` are optional. Setting `trace_id` on events ingested against different
+incidents lets `GET /traces/{trace_id}/timeline` reconstruct a single ordered timeline across all
+of them - useful when one root cause (e.g. a bad deploy) triggers events in several services'
+incidents at once.
+
+## Migrations
+
+Schema is managed by Alembic, not `create_all` - `docker-compose up` runs `alembic upgrade head`
+automatically before starting the server.
+
+```bash
+alembic upgrade head                              # apply pending migrations
+alembic downgrade -1                               # roll back one migration
+alembic revision --autogenerate -m "description"   # after changing models.py
+```
+
+`alembic.ini` and `alembic/env.py` read `DATABASE_URL` the same way `main.py` does, so migrations
+target whatever database the app itself is configured for.
 
 ## Deploying to GCP
 
@@ -97,6 +117,7 @@ python -m venv venv
 source venv/bin/activate  # or `venv\Scripts\activate` on Windows
 pip install -r requirements.txt
 export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/incident_replay
+alembic upgrade head
 uvicorn main:app --reload
 ```
 
@@ -113,5 +134,5 @@ This wipes the database and starts fresh.
 1. **Wire React frontend** to these endpoints
 2. **Add authentication** (JWT, API keys, etc.)
 3. **Add observability** (logging, tracing)
-4. **Write tests** (pytest for endpoints)
-5. **Implement GitHub Actions** for CI/CD
+4. **Replace `create_all`-on-startup with real migrations** (e.g. Alembic) before a second
+   environment or teammate touches the schema

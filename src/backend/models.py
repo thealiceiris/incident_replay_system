@@ -29,6 +29,8 @@ class Event(Base):
     received_at = Column(DateTime, default=datetime.utcnow)  # when system received it
     source = Column(String, nullable=False)  # service name
     data = Column(JSON, nullable=False)
+    trace_id = Column(String, nullable=True, index=True)  # correlates events across incidents
+    span_id = Column(String, nullable=True)
 
     # Relationship
     incident = relationship("Incident", back_populates="events")

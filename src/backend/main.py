@@ -6,16 +6,24 @@ from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from openfeature import api as feature_api
+from openfeature.contrib.provider.flagd import FlagdProvider
 from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, desc
 from sqlalchemy.orm import Session, sessionmaker
 
-from models import Base, Incident, Event
+from models import Incident, Event
 
 # Database setup
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/incident_replay")
 engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Feature flags (flagd, local provider - see deploy/flags/flags.json).
+# default_value stays permissive: if flagd is unreachable, behavior matches pre-flag main.py.
+feature_api.set_provider(FlagdProvider())
+_flags = feature_api.get_client()
+VALID_INCIDENT_STATUSES = {"active", "investigating", "resolved"}
 
 
 def get_db():
@@ -51,6 +59,8 @@ class EventCreate(BaseModel):
     timestamp: datetime  # when the event actually occurred
     source: str  # service name
     data: dict  # arbitrary JSON payload
+    trace_id: Optional[str] = None  # correlates this event to others across incidents
+    span_id: Optional[str] = None
 
 
 class EventResponse(BaseModel):
@@ -61,6 +71,8 @@ class EventResponse(BaseModel):
     received_at: datetime
     source: str
     data: dict
+    trace_id: Optional[str] = None
+    span_id: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -76,8 +88,8 @@ class TimelineResponse(BaseModel):
 # FastAPI app
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    Base.metadata.create_all(bind=engine)
+    # Startup - schema is owned by Alembic (alembic/), not created here.
+    # Run `alembic upgrade head` before starting the app against a fresh database.
     print("Starting Incident Replay System")
     yield
     # Shutdown
@@ -138,12 +150,21 @@ def ingest_event(incident_id: str, event: EventCreate, db: Session = Depends(get
         timestamp=event.timestamp,
         received_at=datetime.utcnow(),
         source=event.source,
-        data=event.data
+        data=event.data,
+        trace_id=event.trace_id,
+        span_id=event.span_id
     )
     db.add(db_event)
     db.commit()
     db.refresh(db_event)
     return db_event
+
+
+@app.get("/traces/{trace_id}/timeline", response_model=list[EventResponse])
+def get_trace_timeline(trace_id: str, db: Session = Depends(get_db)):
+    """Get ordered events sharing a trace ID, across incidents."""
+    events = db.query(Event).filter(Event.trace_id == trace_id).order_by(Event.timestamp, Event.received_at, Event.id).all()
+    return events
 
 
 @app.get("/incidents/{incident_id}/timeline", response_model=TimelineResponse)
@@ -154,7 +175,7 @@ def get_timeline(incident_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Incident not found")
 
     # Fetch events sorted by actual occurrence time
-    events = db.query(Event).filter(Event.incident_id == incident_id).order_by(Event.timestamp).all()
+    events = db.query(Event).filter(Event.incident_id == incident_id).order_by(Event.timestamp, Event.received_at, Event.id).all()
 
     return TimelineResponse(
         incident_id=db_incident.id,
@@ -177,6 +198,13 @@ def update_incident_status(incident_id: str, status: str, db: Session = Depends(
     db_incident = db.query(Incident).filter(Incident.id == incident_id).first()
     if not db_incident:
         raise HTTPException(status_code=404, detail="Incident not found")
+
+    strict = _flags.get_boolean_value("strict-status-validation", default_value=False)
+    if strict and status not in VALID_INCIDENT_STATUSES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"status must be one of {sorted(VALID_INCIDENT_STATUSES)}",
+        )
 
     db_incident.status = status
     db.commit()

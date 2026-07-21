@@ -49,3 +49,26 @@ def test_update_incident_status(client):
 def test_update_incident_status_not_found(client):
     response = client.patch("/incidents/does-not-exist", params={"status": "resolved"})
     assert response.status_code == 404
+
+
+def test_update_incident_status_permissive_when_flag_off(client):
+    # strict-status-validation defaults off (no flagd reachable in tests) - any string is accepted,
+    # matching the app's pre-flag behavior.
+    created = client.post("/incidents", json={"name": "Flag off"}).json()
+
+    response = client.patch(f"/incidents/{created['id']}", params={"status": "bogus-status"})
+    assert response.status_code == 200
+    assert response.json()["status"] == "bogus-status"
+
+
+def test_update_incident_status_rejects_invalid_when_flag_on(client, monkeypatch):
+    import main
+
+    monkeypatch.setattr(main._flags, "get_boolean_value", lambda *a, **k: True)
+    created = client.post("/incidents", json={"name": "Flag on"}).json()
+
+    response = client.patch(f"/incidents/{created['id']}", params={"status": "bogus-status"})
+    assert response.status_code == 422
+
+    response = client.patch(f"/incidents/{created['id']}", params={"status": "resolved"})
+    assert response.status_code == 200
