@@ -9,7 +9,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from main import app, get_db
+from database import get_db
+from main import app
 from models import Base
 
 # In-memory SQLite keeps the suite fast and independent of a running Postgres.

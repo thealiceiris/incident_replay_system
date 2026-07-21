@@ -62,9 +62,9 @@ def test_update_incident_status_permissive_when_flag_off(client):
 
 
 def test_update_incident_status_rejects_invalid_when_flag_on(client, monkeypatch):
-    import main
+    from flags import _flags
 
-    monkeypatch.setattr(main._flags, "get_boolean_value", lambda *a, **k: True)
+    monkeypatch.setattr(_flags, "get_boolean_value", lambda *a, **k: True)
     created = client.post("/incidents", json={"name": "Flag on"}).json()
 
     response = client.patch(f"/incidents/{created['id']}", params={"status": "bogus-status"})

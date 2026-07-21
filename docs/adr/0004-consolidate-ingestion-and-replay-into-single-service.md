@@ -14,6 +14,16 @@ At this stage, there is no evidence to suggest that the read (replay) and write 
 
 We will deploy the Ingestion and Replay APIs as a single physical service. The logical separation will be maintained within the FastAPI application using separate routers (`app/ingestion/` and `app/replay/`), but they will be packaged into a single container image and deployed as one service on GKE Autopilot.
 
+> **Update (2026-07-21):** an audit found this router separation was never actually implemented -
+> `main.py` had grown into one flat file with all six endpoints, the DB engine, and the feature-flag
+> client mixed together. The "easy to split later" claim below was aspirational, not real: with
+> everything in one file there was no cheaper seam to a future two-service split than doing this
+> refactor from scratch. Fixed same day - `src/backend/database.py` (engine/session), `flags.py`
+> (flagd client), `schemas.py` (Pydantic models), `ingestion/router.py`, and `replay/router.py` now
+> exist for real, with `main.py` reduced to app setup + `include_router` calls. Deployment topology
+> is unchanged (still one container, one `uvicorn main:app`) - this closes the gap between what this
+> ADR claimed and what the code did, it does not change the decision itself.
+
 ## Consequences
 
 **Positive:**
